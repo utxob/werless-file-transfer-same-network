@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wireless File</title>
+
+    <link rel="icon" type="image/png" href="/favicon/icon.jpg">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 0;
+        }
+
+        h1, h2 {
+            color: #333;
+        }
+
+        form {
+            margin-bottom: 20px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #progress-container {
+            display: none;
+            margin-top: 20px;
+            width: 100%;
+            background-color: #f3f3f3;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        #progress-bar {
+            height: 20px;
+            background-color: #4caf50;
+            width: 0;
+        }
+
+        #file-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        #file-list li {
+            margin: 5px 0;
+        }
+
+        #file-list li a {
+            text-decoration: none;
+            color: #007bff;
+        }
+
+        #file-list li a:hover {
+            text-decoration: underline;
+        }
+
+        #file-list li button {
+            margin-left: 10px;
+            background-color: #dc3545;
+        }
+
+        #file-list li button:hover {
+            background-color: #a71d2a;
+        }
+    </style>
+</head>
+<body>
+    <h1>Upload a File</h1>
+    <form id="upload-form" enctype="multipart/form-data">
+        <input type="file" id="file" name="file" required>
+        <button type="submit">Upload</button>
+    </form>
+
+    <div id="progress-container">
+        <div id="progress-bar"></div>
+    </div>
+
+    <h2>Available Files</h2>
+    <ul id="file-list"></ul>
+
+    <script>
+        const form = document.getElementById('upload-form');
+        const fileInput = document.getElementById('file');
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progress-bar');
+        const fileList = document.getElementById('file-list');
+
+        form.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const file = fileInput.files[0];
+            if (!file) {
+                alert("Please select a file to upload.");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/upload', true);
+
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const percentComplete = (e.loaded / e.total) * 100;
+                    progressContainer.style.display = 'block';
+                    progressBar.style.width = `${percentComplete}%`;
+                }
+            });
+
+            xhr.onload = () => {
+                if (xhr.status === 200) {
+                    alert("File uploaded successfully!");
+                    progressContainer.style.display = 'none';
+                    progressBar.style.width = '0';
+                    loadFiles();
+                } else {
+                    alert("File upload failed.");
+                }
+            };
+
+            xhr.send(formData);
+        });
+
+        function loadFiles() {
+            fetch('/files')
+                .then(response => response.json())
+                .then(data => {
+                    fileList.innerHTML = ''; // Clear the list
+                    data.files.forEach(file => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `
+                            <a href="/files/${file}" target="_blank">${file}</a>
+                            <button onclick="deleteFile('${file}')">Delete</button>
+                        `;
+                        fileList.appendChild(li);
+                    });
+                });
+        }
+
+        function deleteFile(filename) {
+            fetch(`/delete/${filename}`, { method: 'DELETE' })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message || data.error);
+                    loadFiles();
+                });
+        }
+
+        // Initial load of files
+        loadFiles();
+    </script>
+</body>
+</html>
